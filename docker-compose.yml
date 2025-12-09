@@ -1,0 +1,57 @@
+services:
+  build:
+    image: gcc:latest
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: make
+
+  compile:
+    image: gcc:latest
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    entrypoint: ["gcc", "-Wall", "-Wextra", "-g"]
+    # Usage: docker compose run compile -o output input.c
+
+  compile-debug:
+    image: gcc:latest
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    entrypoint: ["gcc", "-Wall", "-Wextra", "-g", "-O0"]
+    # Usage: docker compose run compile-debug -o output input.c
+
+  run:
+    image: gcc:latest
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    stdin_open: true
+    tty: true
+    # Usage: docker compose run run test.c
+
+  shell:
+    image: gcc:latest
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    entrypoint: ["/bin/bash"]
+    stdin_open: true
+    tty: true
+    # Usage: docker compose run shell
+
+  test:
+    image: python:3.11-slim
+    platform: linux/amd64
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["pip install -q pyelftools capstone rich && python read_elf.py \"$@\"", "--"]
+    # Usage: docker compose run test test_x86

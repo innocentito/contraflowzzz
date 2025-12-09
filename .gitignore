@@ -1,0 +1,35 @@
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Mac system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Compiled binaries
+test_x86
+*_x86
+*.o
+*.out
+a.out
+crackme
+xor_test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
