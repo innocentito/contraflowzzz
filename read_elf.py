@@ -19,9 +19,10 @@ def detect_xor_loops(instructions):
 
 def is_backward_jump(insn):
     if insn.mnemonic.startswith('j') or insn.mnemonic.startswith('loop'):
-        if insn.operands and len(insn.operands) >0:
-            target = insn.operands[0].imm
-            return target < insn.address
+        if insn.operands and len(insn.operands) > 0:
+            if insn.operands[0].type == 2:  # Immediate
+                target = insn.operands[0].imm
+                return target < insn.address
         try: 
             target = int(insn.op_str, 16)
             return target < insn.address
@@ -46,24 +47,55 @@ def detect_xor_constants(instructions):
                         findings.append(insn)
     return findings
 
+def auto_extract_xor_key(xor_insn):
+    if xor_insn.operands and len(xor_insn.operands) > 1:
+        if xor_insn.operands[1].type == 2:  # Immediate
+            return xor_insn.operands[1].imm
+    return None
+
+def autodecrypt_xor(loop_info, instructions):
+    key = auto_extract_xor_key(loop_info['xor'])
+    if key:
+        print(f"     Potential XOR key found: 0x{key:x} ({chr(key) if 32 <= key <= 126 else '?'})")
+    if key is None:
+        return None
+
+    start_addr = loop_info['jump'].address
+    end_addr = loop_info['xor'].address
+
+    decrypted_bytes = bytearray()
+
+    for insn in instructions:
+        if start_addr <= insn.address <= end_addr:
+            if insn.mnemonic == 'mov' and insn.operands and len(insn.operands) > 1:
+                if insn.operands[1].type == 2:
+                    byte = insn.operands[1].imm
+                    decrypted_byte = byte ^ key
+                    decrypted_bytes.append(decrypted_byte)
+
+    return decrypted_bytes
+
 def load_instructions(filename):
     f = open(filename, 'rb')  # File bleibt offen!
     elf = ELFFile(f)
+    all_instructions = []
 
     for section in elf.iter_sections():
-        if section.name == '.text':
+        if section['sh_flags'] & 0x4:  # SHF_EXECINSTR
             data = section.data()
+            if len (data) > 0:
 
-            is_64bit = elf.elfclass == 64
-            mode = CS_MODE_64 if is_64bit else CS_MODE_32
-            md = Cs(CS_ARCH_X86, mode)
-            md.detail = True
-            base_addr = section['sh_addr']
-            instructions = list(md.disasm(data, base_addr))
+                is_64bit = elf.elfclass == 64
+                mode = CS_MODE_64 if is_64bit else CS_MODE_32
+                md = Cs(CS_ARCH_X86, mode)
+                md.detail = True
+                base_addr = section['sh_addr']
+                instructions = list(md.disasm(data, base_addr))
+                all_instructions.extend(instructions)
+    if all_instructions:
+        return elf, all_instructions, f
 
-            return elf, instructions
-
-    return None, None
+    return None, None, None
 
 
 def show_sections(elf):
@@ -94,6 +126,7 @@ def analyze_xor_loops(instructions):
         for loop in xor_loops:
             print(f"     XOR at 0x{loop['xor'].address:x}: {loop['xor'].mnemonic} {loop['xor'].op_str}")
             print(f"     Loop at 0x{loop['jump'].address:x}: {loop['jump'].mnemonic} {loop['jump'].op_str}")
+            autodecrypt_xor(loop, instructions)
             print()
 
 def analyze_xor_constants(instructions):
@@ -109,18 +142,21 @@ def analyze_xor_constants(instructions):
 
 def show_menu():
     print("\nWhat do you want to analyze?")
-    print("1) Show all sections")
-    print("2) Disassemble .text section")
-    print("3) Show all XOR instructions")
-    print("4) Analyze XOR loops")
-    print("5) Analyze XOR with magic constants")
-    print("0) Exit")
-    return input("Choose: ")
+    print("[1] Show sections")
+    print("[2] Disassemble")
+    print("[3] Show all XORs")
+    print("[4] Analyze XOR loops")
+    print("[5] Analyze XOR constants")
+    print("[0] Exit")
+    print()
+    choice = input(">> choose: ").strip()
+    print()
+    return choice
 
 filename = input("Enter binary path: ")
 
 try:
-    elf, instructions = load_instructions(filename)
+    elf, instructions, f = load_instructions(filename)
 
     if instructions is None:
         print("Error: .text section not found in binary")
@@ -149,6 +185,7 @@ while True:
         analyze_xor_constants(instructions)
     elif choice == '0':
         print("Exiting...")
+        f.close()
         break
     else:
         print("Invalid choice!")
