@@ -47,12 +47,6 @@ def detect_xor_constants(instructions):
                         findings.append(insn)
     return findings
 
-def show_xor_key(xor_insn):
-    if xor_insn.operands and len(xor_insn.operands) > 1:
-        if xor_insn.operands[1].type == 2:  # Immediate
-            key = xor_insn.operands[1].imm
-            print(f"     Potential XOR key: 0x{key:x} ({chr(key) if 32 <= key <= 126 else '?'})")
-
 def load_instructions(filename):
     f = open(filename, 'rb')  # File bleibt offen!
     elf = ELFFile(f)
@@ -104,7 +98,6 @@ def analyze_xor_loops(instructions):
         for loop in xor_loops:
             print(f"     XOR at 0x{loop['xor'].address:x}: {loop['xor'].mnemonic} {loop['xor'].op_str}")
             print(f"     Loop at 0x{loop['jump'].address:x}: {loop['jump'].mnemonic} {loop['jump'].op_str}")
-            show_xor_key(loop['xor'])
             print()
 
 def analyze_xor_constants(instructions):
