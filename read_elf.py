@@ -47,33 +47,11 @@ def detect_xor_constants(instructions):
                         findings.append(insn)
     return findings
 
-def auto_extract_xor_key(xor_insn):
+def show_xor_key(xor_insn):
     if xor_insn.operands and len(xor_insn.operands) > 1:
         if xor_insn.operands[1].type == 2:  # Immediate
-            return xor_insn.operands[1].imm
-    return None
-
-def autodecrypt_xor(loop_info, instructions):
-    key = auto_extract_xor_key(loop_info['xor'])
-    if key:
-        print(f"     Potential XOR key found: 0x{key:x} ({chr(key) if 32 <= key <= 126 else '?'})")
-    if key is None:
-        return None
-
-    start_addr = loop_info['jump'].address
-    end_addr = loop_info['xor'].address
-
-    decrypted_bytes = bytearray()
-
-    for insn in instructions:
-        if start_addr <= insn.address <= end_addr:
-            if insn.mnemonic == 'mov' and insn.operands and len(insn.operands) > 1:
-                if insn.operands[1].type == 2:
-                    byte = insn.operands[1].imm
-                    decrypted_byte = byte ^ key
-                    decrypted_bytes.append(decrypted_byte)
-
-    return decrypted_bytes
+            key = xor_insn.operands[1].imm
+            print(f"     Potential XOR key: 0x{key:x} ({chr(key) if 32 <= key <= 126 else '?'})")
 
 def load_instructions(filename):
     f = open(filename, 'rb')  # File bleibt offen!
@@ -126,7 +104,7 @@ def analyze_xor_loops(instructions):
         for loop in xor_loops:
             print(f"     XOR at 0x{loop['xor'].address:x}: {loop['xor'].mnemonic} {loop['xor'].op_str}")
             print(f"     Loop at 0x{loop['jump'].address:x}: {loop['jump'].mnemonic} {loop['jump'].op_str}")
-            autodecrypt_xor(loop, instructions)
+            show_xor_key(loop['xor'])
             print()
 
 def analyze_xor_constants(instructions):
