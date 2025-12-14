@@ -15,7 +15,22 @@ def detect_xor_loops(instructions):
                         'jump': instructions[j]
                     })
                     break
-    return findings  # findings hat jetzt alle xors
+    return findings
+
+def detect_rol_ror_loops(instructions):
+    findings = []
+
+    for i, insn in enumerate(instructions):
+        if insn.mnemonic == 'rol' or insn.mnemonic == 'ror':
+
+            for j in range(i+1, min(i+20, len(instructions))):
+                if is_backward_jump(instructions[j]):
+                    findings.append({
+                        'rotate': insn,
+                        'jump': instructions[j]
+                    })
+                    break
+    return findings
 
 def is_backward_jump(insn):
     if insn.mnemonic.startswith('j') or insn.mnemonic.startswith('loop'):
@@ -87,6 +102,19 @@ def show_all_xors(instructions):
     for xor in all_xors:
         print(f"  0x{xor.address:x}: {xor.mnemonic} {xor.op_str}")
 
+def analyze_rotate_loops(instructions):
+    
+    rotate_loops = detect_rol_ror_loops(instructions)
+    print(f"ROL/ROR Loops detected: {len(rotate_loops)}")
+    print()
+
+    if rotate_loops:
+        print("\nSuspicious ROL/ROR Loops:")
+        for loop in rotate_loops:
+            print(f"     Rotate at 0x{loop['rotate'].address:x}: {loop['rotate'].mnemonic} {loop['rotate'].op_str}")
+            print(f"     Loop at 0x{loop['jump'].address:x}: {loop['jump'].mnemonic} {loop['jump'].op_str}")
+            print()
+
 def analyze_xor_loops(instructions):
     # Nur Loops
     xor_loops = detect_xor_loops(instructions)
@@ -118,6 +146,7 @@ def show_menu():
     print("[3] Show all XORs")
     print("[4] Analyze XOR loops")
     print("[5] Analyze XOR constants")
+    print("[6] Analyze ROL/ROR loops")
     print("[0] Exit")
     print()
     choice = input(">> choose: ").strip()
@@ -140,6 +169,9 @@ except Exception as e:
     print(f"Error loading binary: {e}")
     sys.exit(1)
 
+finally:
+        f.close()
+
 # Main menu loop
 while True:
     choice = show_menu()
@@ -154,6 +186,8 @@ while True:
         analyze_xor_loops(instructions)
     elif choice == '5':
         analyze_xor_constants(instructions)
+    elif choice == '6':
+        analyze_rotate_loops(instructions)
     elif choice == '0':
         print("Exiting...")
         f.close()
