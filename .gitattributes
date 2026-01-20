@@ -1,2 +1,35 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Source code
+*.c text diff=c
+*.h text diff=c
+*.py text diff=python
+
+# Documentation
+*.md text diff=markdown
+*.txt text
+
+# Docker files
+Dockerfile text
+docker-compose.yml text
+
+# Git files
+.gitattributes text
+.gitignore text
+
+# Binary files (ensure they're treated as binary)
+*.o binary
+*.out binary
+*.exe binary
+*.so binary
+*.dylib binary
+*.dll binary
+*.a binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.rar binary
