@@ -25,6 +25,7 @@ test_x86
 a.out
 crackme
 xor_test
+rotate_test
 
 # IDE
 .vscode/
