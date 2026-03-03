@@ -2,34 +2,42 @@ import sys
 from elftools.elf.elffile import ELFFile
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64, CS_MODE_32
 
+"""  der nächste Schritt Stack-String-Detektion oder automatisches Entschlüsseln erkannter
+  XOR-Keys  """
+
+def get_jump_target(insn):
+    if insn.operands and insn.operands[0].type == 2:
+        return insn.operands[0].imm
+    try:
+        return int(insn.op_str, 16)
+    except ValueError:
+        return None
+
+def find_loops(instructions):
+    """Returns list of (start_idx, end_idx, jump_insn) for each detected loop."""
+    addr_to_idx = {insn.address: i for i, insn in enumerate(instructions)}
+    loops = []
+    for insn in instructions:
+        if is_backward_jump(insn):
+            target = get_jump_target(insn)
+            if target is not None and target in addr_to_idx:
+                loops.append((addr_to_idx[target], addr_to_idx[insn.address], insn))
+    return loops
+
 def detect_xor_loops(instructions):
     findings = []
-
-    for i, insn in enumerate(instructions):
-        if insn.mnemonic == 'xor' and not is_setup_xor(insn):
-
-            for j in range(i+1, min(i+20, len(instructions))):
-                if is_backward_jump(instructions[j]):
-                    findings.append({
-                        'xor': insn,
-                        'jump': instructions[j]
-                    })
-                    break
+    for start_idx, end_idx, jump in find_loops(instructions):
+        for insn in instructions[start_idx:end_idx + 1]:
+            if insn.mnemonic == 'xor' and not is_setup_xor(insn):
+                findings.append({'xor': insn, 'jump': jump})
     return findings
 
 def detect_rol_ror_loops(instructions):
     findings = []
-
-    for i, insn in enumerate(instructions):
-        if insn.mnemonic == 'rol' or insn.mnemonic == 'ror':
-
-            for j in range(i+1, min(i+20, len(instructions))):
-                if is_backward_jump(instructions[j]):
-                    findings.append({
-                        'rotate': insn,
-                        'jump': instructions[j]
-                    })
-                    break
+    for start_idx, end_idx, jump in find_loops(instructions):
+        for insn in instructions[start_idx:end_idx + 1]:
+            if insn.mnemonic in ('rol', 'ror'):
+                findings.append({'rotate': insn, 'jump': jump})
     return findings
 
 def is_backward_jump(insn):
@@ -157,11 +165,6 @@ filename = input("Enter binary path: ")
 
 try:
     elf, instructions, f = load_instructions(filename)
-
-    if instructions is None:
-        print("Error: .text section not found in binary")
-        sys.exit(1)
-
 except FileNotFoundError:
     print(f"Error: Binary '{filename}' not found")
     sys.exit(1)
@@ -169,8 +172,9 @@ except Exception as e:
     print(f"Error loading binary: {e}")
     sys.exit(1)
 
-finally:
-        f.close()
+if instructions is None:
+    print("Error: .text section not found in binary")
+    sys.exit(1)
 
 # Main menu loop
 while True:
